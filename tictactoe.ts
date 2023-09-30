@@ -187,7 +187,8 @@ class Controller {
 
     readonly bots = [
         new Bot('Randy McRando', 'img/randymcrando.png', new RandomStrategy()),
-        new Bot('Scaredy McScaredo', 'img/scaredy.png', new WeakDefensiveStrategy()),
+        new Bot('Scaredy Bot', 'img/scaredy.png', new WeakDefensiveStrategy()),
+        new Bot('Basic Bot', 'img/basic.png', new ShortSightedStrategy()),
     ];
 
     protected bot: Bot = this.bots[0];
@@ -300,27 +301,52 @@ function randFrom<T>(ts: T[]) {
     return ts[Math.floor(Math.random() * ts.length)];
 }
 
+function mselect(board: Board, avail: number[], fun: (i: number) => boolean): number|undefined {
+    const want = avail.filter(i => {
+        board.moveByIndex(i);
+        const v = fun(i);
+        board.undoMove(i);
+        return v;
+    });
+
+    return want.length ? randFrom(want) : undefined;
+}
+
+// Pick a move at random.
 class RandomStrategy {
     selectMove(board: ReadonlyBoard): number {
         return randFrom(board.blankIndices);
     }
 }
 
+// Avoid a loss on the next move if possible.
 class WeakDefensiveStrategy {
+    protected fallback = new RandomStrategy();
+
     selectMove(board: ReadonlyBoard): number {
         const b = board.clone();
         b.switchTurns();
 
         const avail = board.blankIndices;
-        const want = avail.filter(i => {
-            b.moveByIndex(i);
-            const v = b.loser === board.nextMark;
-            b.undoMove(i);
-            return v;
-        });
-        if (want.length) return randFrom(want);
+        const avoidLoss = mselect(b, avail, i => b.loser === board.nextMark);
+        if (avoidLoss !== undefined) return avoidLoss;
 
-        return randFrom(board.blankIndices);
+        return this.fallback.selectMove(board);
+    }
+}
+
+// Win on the next move if possible, or else avoid a loss if possible.
+class ShortSightedStrategy {
+    protected fallback = new WeakDefensiveStrategy();
+
+    selectMove(board: ReadonlyBoard): number {
+        const b = board.clone();
+
+        const avail = board.blankIndices;
+        const win = mselect(b, avail, i => b.winner === board.nextMark);
+        if (win !== undefined) return win;
+
+        return this.fallback.selectMove(board);
     }
 }
 

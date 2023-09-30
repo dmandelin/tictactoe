@@ -161,7 +161,8 @@ class Controller {
     markControllers;
     bots = [
         new Bot('Randy McRando', 'img/randymcrando.png', new RandomStrategy()),
-        new Bot('Scaredy McScaredo', 'img/scaredy.png', new WeakDefensiveStrategy()),
+        new Bot('Scaredy Bot', 'img/scaredy.png', new WeakDefensiveStrategy()),
+        new Bot('Basic Bot', 'img/basic.png', new ShortSightedStrategy()),
     ];
     bot = this.bots[0];
     constructor(board) {
@@ -268,25 +269,44 @@ class Bot {
 function randFrom(ts) {
     return ts[Math.floor(Math.random() * ts.length)];
 }
+function mselect(board, avail, fun) {
+    const want = avail.filter(i => {
+        board.moveByIndex(i);
+        const v = fun(i);
+        board.undoMove(i);
+        return v;
+    });
+    return want.length ? randFrom(want) : undefined;
+}
+// Pick a move at random.
 class RandomStrategy {
     selectMove(board) {
         return randFrom(board.blankIndices);
     }
 }
+// Avoid a loss on the next move if possible.
 class WeakDefensiveStrategy {
+    fallback = new RandomStrategy();
     selectMove(board) {
         const b = board.clone();
         b.switchTurns();
         const avail = board.blankIndices;
-        const want = avail.filter(i => {
-            b.moveByIndex(i);
-            const v = b.loser === board.nextMark;
-            b.undoMove(i);
-            return v;
-        });
-        if (want.length)
-            return randFrom(want);
-        return randFrom(board.blankIndices);
+        const avoidLoss = mselect(b, avail, i => b.loser === board.nextMark);
+        if (avoidLoss !== undefined)
+            return avoidLoss;
+        return this.fallback.selectMove(board);
+    }
+}
+// Win on the next move if possible, or else avoid a loss if possible.
+class ShortSightedStrategy {
+    fallback = new WeakDefensiveStrategy();
+    selectMove(board) {
+        const b = board.clone();
+        const avail = board.blankIndices;
+        const win = mselect(b, avail, i => b.winner === board.nextMark);
+        if (win !== undefined)
+            return win;
+        return this.fallback.selectMove(board);
     }
 }
 const board = new Board();
