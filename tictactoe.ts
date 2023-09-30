@@ -4,6 +4,12 @@ enum Mark {
     X = 1,
 }
 
+interface ReadonlyBoard {
+    clone(): Board
+    get(row: number, col: number): Mark
+    blankIndices: number[]
+}
+
 class Board {
     protected watcher: BoardWatcher;
     protected winner_: Mark|'tie' = Mark.BLANK;
@@ -243,11 +249,11 @@ class Bot {
 }
 
 interface Strategy {
-    selectMove(Board): number
+    selectMove(ReadonlyBoard): number
 }
 
 class RandomStrategy {
-    selectMove(board: Board): number {
+    selectMove(board: ReadonlyBoard): number {
         const avail = board.blankIndices;
         return avail[Math.floor(Math.random() * avail.length)]
     }
