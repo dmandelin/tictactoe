@@ -31,7 +31,7 @@ h1 {
     align-items: center;
 
     font-size: 80px;
-    line-height: 0.3;
+    line-height: 0; /* Otherwise it makes the grid cell grow. */
 
     user-select: none;
     cursor: default;
