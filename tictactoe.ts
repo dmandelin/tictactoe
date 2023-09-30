@@ -24,6 +24,16 @@ class Board {
             protected nextMark_: Mark = Mark.X) {
     }
 
+    reset() {
+        this.winner_ = Mark.BLANK;
+        for (let i = 0; i < this.marks.length; ++i) {
+            this.marks[i] = Mark.BLANK;
+        }
+        this.nextMark_ = Mark.X;
+
+        this.watcher.reset();
+    }
+
     clone(): Board {
         return new Board([...this.marks], this.nextMark_)
     }
@@ -110,6 +120,7 @@ class Board {
 interface BoardWatcher {
     changed(row: number, col: number, mark: Mark)
     won(mark: Mark)
+    reset()
 }
 
 class View {
@@ -144,6 +155,13 @@ class View {
             case Mark.O: return 'O';
         }
         return '';
+    }
+
+    reset() {
+        for (const space of this.spaces) {
+            space.innerText = '';
+        }
+        this.updateMessage();
     }
 
     changed(row: number, col: number, mark: Mark) {
@@ -212,6 +230,9 @@ class Controller {
     }
 
     clickedMessage() {
+        if (this.board.winner !== Mark.BLANK) {
+            this.board.reset();
+        }
         this.markControllers[board.nextMark].clickedMessage();
     }
 

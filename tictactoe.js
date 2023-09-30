@@ -16,6 +16,14 @@ class Board {
         this.marks = marks;
         this.nextMark_ = nextMark_;
     }
+    reset() {
+        this.winner_ = Mark.BLANK;
+        for (let i = 0; i < this.marks.length; ++i) {
+            this.marks[i] = Mark.BLANK;
+        }
+        this.nextMark_ = Mark.X;
+        this.watcher.reset();
+    }
     clone() {
         return new Board([...this.marks], this.nextMark_);
     }
@@ -126,6 +134,12 @@ class View {
         }
         return '';
     }
+    reset() {
+        for (const space of this.spaces) {
+            space.innerText = '';
+        }
+        this.updateMessage();
+    }
     changed(row, col, mark) {
         this.spaces[(row - 1) * 3 + col - 1].innerText = this.letter(mark);
         this.updateMessage();
@@ -180,6 +194,9 @@ class Controller {
         this.markControllers[board.nextMark].clickedSquare(row, col);
     }
     clickedMessage() {
+        if (this.board.winner !== Mark.BLANK) {
+            this.board.reset();
+        }
         this.markControllers[board.nextMark].clickedMessage();
     }
     selectedPlayerOption(option) {
