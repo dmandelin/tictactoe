@@ -4,6 +4,10 @@ enum Mark {
     X = 1,
 }
 
+function opp(mark: Mark) {
+    return mark === Mark.X ? Mark.O : Mark.X;
+}
+
 interface ReadonlyBoard {
     clone(): Board
     get(row: number, col: number): Mark
@@ -26,12 +30,6 @@ class Board {
 
     get(row: number, col: number) {
         return this.marks[(row - 1) * 3 + col - 1];
-    }
-
-    set(row: number, col: number, mark: Mark) {
-        this.marks[(row - 1) * 3 + col - 1] = mark;
-        this.nextMark_ = this.nextMark === Mark.X ? Mark.O : Mark.X;
-        if (this.watcher) this.watcher.changed(row, col, mark);
     }
 
     get nextMark() {
@@ -189,6 +187,7 @@ class Controller {
         new Bot('Randy McRando', 'img/randymcrando.png', new RandomStrategy()),
         new Bot('Scaredy Bot', 'img/scaredy.png', new WeakDefensiveStrategy()),
         new Bot('Basic Bot', 'img/basic.png', new ShortSightedStrategy()),
+        new Bot('Logic Bot', 'img/smart.png', new OptimalSearchStrategy()),
     ];
 
     protected bot: Bot = this.bots[0];
@@ -347,6 +346,42 @@ class ShortSightedStrategy {
         if (win !== undefined) return win;
 
         return this.fallback.selectMove(board);
+    }
+}
+
+// Find the best move assuming the opponent makes the best move.
+class OptimalSearchStrategy {
+    selectMove(curBoard: ReadonlyBoard): number {
+        const [i, winner] = this.bestResultFor(curBoard, curBoard.nextMark, false);
+        return i;
+    }
+
+    bestResultFor(curBoard: ReadonlyBoard, mark: Mark, fastMode: boolean): [number, Mark|'tie'] {
+        const avail = curBoard.blankIndices;
+        const b = curBoard.clone();
+
+        const wins = [];
+        const ties = [];
+        for (const i of avail) {
+            b.moveByIndex(i);
+            let winner = b.winner;
+            if (winner === Mark.BLANK) {
+                winner = this.bestResultFor(b, opp(mark), true)[1];
+            }
+            if (winner === mark) {
+                if (fastMode) {
+                    return [i, mark];
+                } else {
+                    wins.push(i);
+                }
+            } else if (winner == 'tie') {
+                ties.push(i);
+            }
+            b.undoMove(i);
+        }
+        if (wins.length) return [randFrom(wins), mark];
+        if (ties.length) return [randFrom(ties), 'tie'];
+        return [randFrom(avail), opp(mark)];
     }
 }
 
