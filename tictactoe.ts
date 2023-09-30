@@ -8,6 +8,7 @@ interface ReadonlyBoard {
     clone(): Board
     get(row: number, col: number): Mark
     blankIndices: number[]
+    nextMark: Mark
 }
 
 class Board {
@@ -27,7 +28,7 @@ class Board {
         return this.marks[(row - 1) * 3 + col - 1];
     }
 
-    protected set(row: number, col: number, mark: Mark) {
+    set(row: number, col: number, mark: Mark) {
         this.marks[(row - 1) * 3 + col - 1] = mark;
         this.nextMark_ = this.nextMark === Mark.X ? Mark.O : Mark.X;
         if (this.watcher) this.watcher.changed(row, col, mark);
@@ -49,7 +50,7 @@ class Board {
         if (this.winner_ != Mark.BLANK) return;
         if (this.marks[index] !== Mark.BLANK) return;
         const markUsed = this.marks[index] = this.nextMark;
-        this.nextMark_ = this.nextMark === Mark.X ? Mark.O : Mark.X;
+        this.switchTurns();
         
         this.winner_ = this.evaluate();
         if (this.winner_ == Mark.BLANK && this.marks.every(m => m !== Mark.BLANK)) {
@@ -57,6 +58,16 @@ class Board {
         }
         
         if (this.watcher) this.watcher.changed(Math.floor(index / 3) + 1, index % 3 + 1, markUsed);
+    }
+
+    undoMove(index: number) {
+        this.marks[index] = Mark.BLANK;
+        this.winner_ = Mark.BLANK;
+        this.switchTurns();
+    }
+
+    switchTurns() {
+        this.nextMark_ = this.nextMark === Mark.X ? Mark.O : Mark.X;
     }
 
     protected evaluate(): Mark {
@@ -80,6 +91,17 @@ class Board {
 
     get winner() {
         return this.winner_;
+    }
+
+    get loser() {
+        switch (this.winner_) {
+            case Mark.X:
+                return Mark.O;
+            case Mark.O:
+                return Mark.X;
+            default:
+                return this.winner_;
+        }
     }
 
     register(watcher: BoardWatcher) {
@@ -151,8 +173,9 @@ class View {
     }
 
     updateBot() {
-        (document.getElementById('bot-image') as HTMLImageElement).src = this.controller.bot.imagePath;
-        document.getElementById('bot-name').innerText = this.controller.bot.name;
+        const bot = this.controller.getBot();
+        (document.getElementById('bot-image') as HTMLImageElement).src = bot.imagePath;
+        document.getElementById('bot-name').innerText = bot.name;
     }
 }
 
@@ -162,13 +185,22 @@ class Controller {
         [Mark.O]: MarkController;
     };
 
-    readonly bot: Bot = new Bot('Randy McRando', 'img/randymcrando.png', new RandomStrategy());
+    readonly bots = [
+        new Bot('Randy McRando', 'img/randymcrando.png', new RandomStrategy()),
+        new Bot('Scaredy McScaredo', 'img/scaredy.png', new WeakDefensiveStrategy()),
+    ];
+
+    protected bot: Bot = this.bots[0];
 
     constructor(protected readonly board: Board) {
         this.markControllers = {
             [Mark.X]: new MarkController(this.board, Mark.X),
             [Mark.O]: new MarkController(this.board, Mark.O, this.bot),
         };
+    }
+
+    getBot() {
+        return this.bot;
     }
 
     botTurn(): boolean {
@@ -213,6 +245,18 @@ class Controller {
                 break;
         }
     }
+
+    selectedBot(name: string) {
+        for (const bot of this.bots) {
+            if (bot.name === name) {
+                this.bot = bot;
+                for (const mc of Object.values(this.markControllers)) {
+                    if (mc.isBot) mc.bot = bot;
+                }
+                break;
+            }
+        }
+    }
 }
 
 class MarkController {
@@ -252,32 +296,71 @@ interface Strategy {
     selectMove(ReadonlyBoard): number
 }
 
+function randFrom<T>(ts: T[]) {
+    return ts[Math.floor(Math.random() * ts.length)];
+}
+
 class RandomStrategy {
     selectMove(board: ReadonlyBoard): number {
+        return randFrom(board.blankIndices);
+    }
+}
+
+class WeakDefensiveStrategy {
+    selectMove(board: ReadonlyBoard): number {
+        const b = board.clone();
+        b.switchTurns();
+
         const avail = board.blankIndices;
-        return avail[Math.floor(Math.random() * avail.length)]
+        const want = avail.filter(i => {
+            b.moveByIndex(i);
+            const v = b.loser === board.nextMark;
+            b.undoMove(i);
+            return v;
+        });
+        if (want.length) return randFrom(want);
+
+        return randFrom(board.blankIndices);
     }
 }
 
 const board = new Board();
 const controller = new Controller(board);
+setupPlayerNumberOptions();
+setupBotOptions();
+
 const view = new View(board, controller);
 
-const options = document.querySelectorAll('.option');
-options[0].classList.add('selected');
+function setupPlayerNumberOptions() {
+    const options = document.querySelectorAll('#pn-options .option');
+    options[0].classList.add('selected');
 
-options.forEach(option => {
-    option.addEventListener('click', (e) => {
-        // Remove 'selected' class from all options
-        options.forEach(opt => opt.classList.remove('selected'));
+    options.forEach(option => {
+        option.addEventListener('click', (e) => {
+            options.forEach(opt => opt.classList.remove('selected'));
+            const clickedOption = e.currentTarget as HTMLElement;
+            clickedOption.classList.add('selected');
 
-        // Add 'selected' class to clicked option
-        const clickedOption = e.currentTarget as HTMLElement;
-        clickedOption.classList.add('selected');
-        
-        // Handle your logic here based on the selected option
-        const selectedValue = clickedOption.getAttribute('data-value');
-        controller.selectedPlayerOption(selectedValue);
-        view.updateMessage();
+            const selectedValue = clickedOption.getAttribute('data-value');
+            controller.selectedPlayerOption(selectedValue);
+            view.updateMessage();
+        });
     });
-});
+}
+
+function setupBotOptions() {
+    const options = document.querySelectorAll('#bot-options .option');
+    options[0].classList.add('selected');
+
+    options.forEach(option => {
+        option.addEventListener('click', (e) => {
+            options.forEach(opt => opt.classList.remove('selected'));
+            const clickedOption = e.currentTarget as HTMLElement;
+            clickedOption.classList.add('selected');
+
+            const selectedName = clickedOption.innerText;
+            controller.selectedBot(selectedName);
+            view.updateBot();
+        });
+    });
+}

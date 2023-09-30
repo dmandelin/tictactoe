@@ -31,6 +31,12 @@ h1 {
 #bot-name {
     text-align: center;
     margin-top: 8px;
+    cursor: pointer;
+}
+
+#bot-options {
+    margin-top: 12px;
+    font-size: 80%;
 }
 
 #container {

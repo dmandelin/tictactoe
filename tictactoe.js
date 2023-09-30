@@ -40,13 +40,21 @@ class Board {
         if (this.marks[index] !== Mark.BLANK)
             return;
         const markUsed = this.marks[index] = this.nextMark;
-        this.nextMark_ = this.nextMark === Mark.X ? Mark.O : Mark.X;
+        this.switchTurns();
         this.winner_ = this.evaluate();
         if (this.winner_ == Mark.BLANK && this.marks.every(m => m !== Mark.BLANK)) {
             this.winner_ = 'tie';
         }
         if (this.watcher)
             this.watcher.changed(Math.floor(index / 3) + 1, index % 3 + 1, markUsed);
+    }
+    undoMove(index) {
+        this.marks[index] = Mark.BLANK;
+        this.winner_ = Mark.BLANK;
+        this.switchTurns();
+    }
+    switchTurns() {
+        this.nextMark_ = this.nextMark === Mark.X ? Mark.O : Mark.X;
     }
     evaluate() {
         for (let row = 1; row <= 3; ++row) {
@@ -74,6 +82,16 @@ class Board {
     }
     get winner() {
         return this.winner_;
+    }
+    get loser() {
+        switch (this.winner_) {
+            case Mark.X:
+                return Mark.O;
+            case Mark.O:
+                return Mark.X;
+            default:
+                return this.winner_;
+        }
     }
     register(watcher) {
         this.watcher = watcher;
@@ -133,20 +151,28 @@ class View {
         }
     }
     updateBot() {
-        document.getElementById('bot-image').src = this.controller.bot.imagePath;
-        document.getElementById('bot-name').innerText = this.controller.bot.name;
+        const bot = this.controller.getBot();
+        document.getElementById('bot-image').src = bot.imagePath;
+        document.getElementById('bot-name').innerText = bot.name;
     }
 }
 class Controller {
     board;
     markControllers;
-    bot = new Bot('Randy McRando', 'img/randymcrando.png', new RandomStrategy());
+    bots = [
+        new Bot('Randy McRando', 'img/randymcrando.png', new RandomStrategy()),
+        new Bot('Scaredy McScaredo', 'img/scaredy.png', new WeakDefensiveStrategy()),
+    ];
+    bot = this.bots[0];
     constructor(board) {
         this.board = board;
         this.markControllers = {
             [Mark.X]: new MarkController(this.board, Mark.X),
             [Mark.O]: new MarkController(this.board, Mark.O, this.bot),
         };
+    }
+    getBot() {
+        return this.bot;
     }
     botTurn() {
         return this.markControllers[this.board.nextMark].isBot;
@@ -188,6 +214,18 @@ class Controller {
                 break;
         }
     }
+    selectedBot(name) {
+        for (const bot of this.bots) {
+            if (bot.name === name) {
+                this.bot = bot;
+                for (const mc of Object.values(this.markControllers)) {
+                    if (mc.isBot)
+                        mc.bot = bot;
+                }
+                break;
+            }
+        }
+    }
 }
 class MarkController {
     board;
@@ -227,27 +265,60 @@ class Bot {
         this.strategy = strategy;
     }
 }
+function randFrom(ts) {
+    return ts[Math.floor(Math.random() * ts.length)];
+}
 class RandomStrategy {
     selectMove(board) {
+        return randFrom(board.blankIndices);
+    }
+}
+class WeakDefensiveStrategy {
+    selectMove(board) {
+        const b = board.clone();
+        b.switchTurns();
         const avail = board.blankIndices;
-        return avail[Math.floor(Math.random() * avail.length)];
+        const want = avail.filter(i => {
+            b.moveByIndex(i);
+            const v = b.loser === board.nextMark;
+            b.undoMove(i);
+            return v;
+        });
+        if (want.length)
+            return randFrom(want);
+        return randFrom(board.blankIndices);
     }
 }
 const board = new Board();
 const controller = new Controller(board);
+setupPlayerNumberOptions();
+setupBotOptions();
 const view = new View(board, controller);
-const options = document.querySelectorAll('.option');
-options[0].classList.add('selected');
-options.forEach(option => {
-    option.addEventListener('click', (e) => {
-        // Remove 'selected' class from all options
-        options.forEach(opt => opt.classList.remove('selected'));
-        // Add 'selected' class to clicked option
-        const clickedOption = e.currentTarget;
-        clickedOption.classList.add('selected');
-        // Handle your logic here based on the selected option
-        const selectedValue = clickedOption.getAttribute('data-value');
-        controller.selectedPlayerOption(selectedValue);
-        view.updateMessage();
+function setupPlayerNumberOptions() {
+    const options = document.querySelectorAll('#pn-options .option');
+    options[0].classList.add('selected');
+    options.forEach(option => {
+        option.addEventListener('click', (e) => {
+            options.forEach(opt => opt.classList.remove('selected'));
+            const clickedOption = e.currentTarget;
+            clickedOption.classList.add('selected');
+            const selectedValue = clickedOption.getAttribute('data-value');
+            controller.selectedPlayerOption(selectedValue);
+            view.updateMessage();
+        });
     });
-});
+}
+function setupBotOptions() {
+    const options = document.querySelectorAll('#bot-options .option');
+    options[0].classList.add('selected');
+    options.forEach(option => {
+        option.addEventListener('click', (e) => {
+            options.forEach(opt => opt.classList.remove('selected'));
+            const clickedOption = e.currentTarget;
+            clickedOption.classList.add('selected');
+            const selectedName = clickedOption.innerText;
+            controller.selectedBot(selectedName);
+            view.updateBot();
+        });
+    });
+}
