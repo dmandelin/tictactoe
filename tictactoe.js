@@ -203,7 +203,6 @@ class MarkController {
     }
     clickedMessage() {
         const ix = this.botStrategy.selectMove(board);
-        console.log(ix);
         board.moveByIndex(ix);
     }
     get isBot() {
