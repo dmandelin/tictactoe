@@ -1,0 +1,35 @@
+.options-container {
+    padding: 10px;
+    border: 1px solid #e0e0e0;
+    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1); /* Slight shadow for a paper effect */
+    background: #fdfdfd; /* Off-white background for a paper-like feel */
+    width: 120px; 
+    position: absolute;  /* Positioned on the document */
+    top: 10px;
+    right: 10px;
+}
+
+.option {
+    padding: 6px 6px 6px 24px; /* Increased left padding to accommodate checkmark */
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    line-height: 1; /* Reduced line height to reduce vertical space between options */
+}
+
+.option:hover {
+    background-color: #f5f5f5; /* Slight highlight on hover */
+}
+
+.option.selected {
+    position: relative;
+    font-weight: bold;
+}
+
+.option.selected::before {
+    content: "✓"; /* Unicode for check mark */
+    position: absolute;
+    left: 6px; /* Position to the left of the option text */
+    top: 50%;
+    transform: translateY(-50%);
+    font-weight: bold;
+}

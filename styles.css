@@ -1,0 +1,47 @@
+body {
+    font-family: "Cabin Sketch", "Open Sans", sans-serif;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+h1 {
+    font-size: 48px;
+    text-align: center;
+    margin-top: 20px;
+}
+
+#container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* This creates three equal columns */
+    grid-gap: 2px; /* This adds the "border" or gap between grid items */
+    width: 300px; /* Example width, adjust as needed */
+    height: 300px; /* Example height, adjust as needed */
+    background-color: black; /* This will serve as the "border" color */
+    margin: 64px auto;
+}
+
+#container > div {
+    background-color: white; /* This will be the color of the grid items themselves */
+    width: 100%; /* Take up full width of the grid cell */
+    height: 100%; /* Take up full height of the grid cell */
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    font-size: 80px;
+    line-height: 0.3;
+
+    user-select: none;
+    cursor: default;
+}
+
+.message {
+    font-size: 48px;
+    margin: 48px auto;
+    text-align: center;
+
+    user-select: none;
+    cursor: default;
+}
