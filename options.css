@@ -4,9 +4,6 @@
     box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1); /* Slight shadow for a paper effect */
     background: #fdfdfd; /* Off-white background for a paper-like feel */
     width: 120px; 
-    position: absolute;  /* Positioned on the document */
-    top: 10px;
-    right: 10px;
 }
 
 .option {

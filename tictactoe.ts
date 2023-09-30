@@ -109,6 +109,7 @@ class View {
         this.message.addEventListener('click', () => this.controller.clickedMessage());
         document.querySelector('body').appendChild(this.message);
         this.updateMessage();
+        this.updateBot();
     }
 
     letter(mark: Mark) {
@@ -142,6 +143,11 @@ class View {
             this.message.innerText = 'Tie';
         }
     }
+
+    updateBot() {
+        (document.getElementById('bot-image') as HTMLImageElement).src = this.controller.bot.imagePath;
+        document.getElementById('bot-name').innerText = this.controller.bot.name;
+    }
 }
 
 class Controller {
@@ -150,10 +156,12 @@ class Controller {
         [Mark.O]: MarkController;
     };
 
+    readonly bot: Bot = new Bot('Randy McRando', 'img/randymcrando.png', new RandomStrategy());
+
     constructor(protected readonly board: Board) {
         this.markControllers = {
-            [Mark.X]: new MarkController(this.board, Mark.X, false),
-            [Mark.O]: new MarkController(this.board, Mark.O, true),
+            [Mark.X]: new MarkController(this.board, Mark.X),
+            [Mark.O]: new MarkController(this.board, Mark.O, this.bot),
         };
     }
 
@@ -174,24 +182,24 @@ class Controller {
         switch(option) {
             case '1px':
                 xc.setHuman();
-                oc.setBot();
+                oc.bot = this.bot;
                 break;
             case '1po':
-                xc.setBot();
+                xc.bot = this.bot;
                 oc.setHuman();
                 break;
             case '1p?':
                 if (Math.random() < 0.5) {
                     xc.setHuman();
-                    oc.setBot();                        
+                    oc.bot = this.bot;                      
                 } else {
-                    xc.setBot();
+                    xc.bot = this.bot;
                     oc.setHuman();    
                 }
                 break;
             case '0p':
-                xc.setBot();
-                oc.setBot();
+                xc.bot = this.bot;
+                oc.bot = this.bot;
                 break;
             case '2p':
                 xc.setHuman();
@@ -202,13 +210,11 @@ class Controller {
 }
 
 class MarkController {
-    protected readonly botStrategy = new RandomStrategy();
-
     constructor(protected readonly board: Board, protected readonly mark: Mark, 
-        protected isBot_: boolean) {}
+        public bot?: Bot) {}
 
     clickedSquare(row: number, col: number) {
-        if (this.isBot) {
+        if (this.bot) {
             this.clickedMessage();
         } else {
             this.board.move(row, col);
@@ -216,21 +222,28 @@ class MarkController {
     }
 
     clickedMessage() {
-        const ix = this.botStrategy.selectMove(board);
+        const ix = this.bot.strategy.selectMove(board);
         board.moveByIndex(ix);
     }
 
-    get isBot() {
-        return this.isBot_;
-    }
-
-    setBot() {
-        this.isBot_ = true;
+    get isBot(): boolean {
+        return !!this.bot;
     }
 
     setHuman() {
-        this.isBot_ = false;
+        this.bot = undefined;
     }
+}
+
+class Bot {
+    constructor(
+        public readonly name: string, 
+        public readonly imagePath: string, 
+        public readonly strategy: Strategy) {}
+}
+
+interface Strategy {
+    selectMove(Board): number
 }
 
 class RandomStrategy {

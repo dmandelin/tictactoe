@@ -13,14 +13,22 @@
     <link rel="stylesheet" href="options.css">
 </head>
 <body>
-    <div class="options-container">
-        <div class="option" data-value="1px">X vs bot</div>
-        <div class="option" data-value="1po">O vs bot</div>
-        <div class="option" data-value="1p?">? vs bot</div>
-        <div class="option" data-value="0p">Bot vs bot</div>
-        <div class="option" data-value="2p">2P</div>
-    </div>    
-    
+    <div id="right-bar">
+        <div class="options-container">
+            <div class="option" data-value="1px">X vs bot</div>
+            <div class="option" data-value="1po">O vs bot</div>
+            <div class="option" data-value="1p?">? vs bot</div>
+            <div class="option" data-value="0p">Bot vs bot</div>
+            <div class="option" data-value="2p">2P</div>
+        </div>    
+
+        <div id="bot-header">Bot opponent</div>
+        <div id="bot-view" class="options-container">
+            <img id="bot-image" width="120" height="120">
+        </div>
+        <div id="bot-name"></div>
+    </div>
+
     <h1>Tic Tac Toe</h1>
     <div id="container">
     </div>
