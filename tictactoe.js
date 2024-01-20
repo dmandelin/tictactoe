@@ -294,12 +294,36 @@ function mselect(board, avail, fun) {
     return want.length ? randFrom(want) : undefined;
 }
 // Pick a move at random.
+//
+// Mostly loses, except playing as X against itself.
+//
+// - As X:
+//   - Against itself, wins 60%, ties 30%
+//   - Seldom (<15%) wins against any other strategy
+//   - Often (40%) loses against weak defensive
+//   - Usually (75%) loses against short-sighted or optimal
+// - As O:
+//   - Generally (>90%, 98% vs optimal) loses
 class RandomStrategy {
     selectMove(board) {
         return randFrom(board.blankIndices);
     }
 }
 // Avoid a loss on the next move if possible.
+//
+// Usually ties, except playing O against optimal. Strictly
+// inferior to short-sighted. Stronger as X against optimal
+// than it is against short-sighted.
+//
+// - As X:
+//   - Usually (60-80%) ties
+//   - Wins more than loses against itself
+//   - Loses more than wins against short-sighted
+//   - Never wins against optimal
+//   * Short-sighted beats it more often than optimal does
+// - As O:
+//   - Ties 60% and wins 10% vs short-sighted
+//   - Usually (80%) loses against optimal
 class WeakDefensiveStrategy {
     fallback = new RandomStrategy();
     selectMove(board) {
@@ -313,6 +337,16 @@ class WeakDefensiveStrategy {
     }
 }
 // Win on the next move if possible, or else avoid a loss if possible.
+//
+// Usually ties, except playing O against optimal. Strictly better
+// than short-sighted.
+//
+// - As X:
+//   - Usually (60%) ties
+//   - Sometimes (30%) wins against weak and itself, but never optimal
+// - As O:
+//   - Usually ties against weak and itself, stronger against weak
+//   - Usually (80%) loses against optimal
 class ShortSightedStrategy {
     fallback = new WeakDefensiveStrategy();
     selectMove(board) {
@@ -325,6 +359,17 @@ class ShortSightedStrategy {
     }
 }
 // Find the best move assuming the opponent makes the best move.
+//
+// Never loses. As X, usually wins, but nontrivial strategies sometimes
+// tie. As O, usually ties except against random, but occasionally wins.
+// Strictly better than all others, except that short-sighted and weak
+// can win against each other more often than optimal does.
+//
+// - Always ties itself
+// - As X:
+//   - Usually (>80%) wins against all others
+// - As O:
+//   - Usually ties weak and short-sighted, but occasionally wins
 class OptimalSearchStrategy {
     selectMove(curBoard) {
         const [i, winner] = this.bestResultFor(curBoard, curBoard.nextMark, false);
@@ -361,13 +406,46 @@ class OptimalSearchStrategy {
         return [randFrom(avail), opp(mark)];
     }
 }
+// Optimal, except uses a specific first move.
+//
+// This is intended to improve on optimal a bit when playing as X, in case
+// the other strategies are weaker against different opening moves. Optimal
+// chooses an opening move randomly, as optimal play leads to a tie no
+// matter what.
+//
+// But the right opening move can do better against the heuristic strategies
+// as X:
+// - optimal wins 80% of the time
+// - opening with corner or edge boosts to 90%
+// - opening with center drops to 30%!
+//
+// This strategy opening with corner or edge is for the most part the best,
+// but it's still not quite as good at winning as O against the heuristic
+// strategies as they are against each other. However, it never loses, and
+// they do. The question remains whether some algorithm could get a better
+// win rate against the heuristic strategies while still not losing.
+class OptimalSearchStrategyWithOpening {
+    openingMove;
+    oss = new OptimalSearchStrategy();
+    constructor(openingMove) {
+        this.openingMove = openingMove;
+    }
+    selectMove(curBoard) {
+        return curBoard.blankIndices.length == 9
+            ? this.openingMove
+            : this.oss.selectMove(curBoard);
+    }
+}
 const strats = {
     'rand': new RandomStrategy(),
     'weak': new WeakDefensiveStrategy(),
     'shrt': new ShortSightedStrategy(),
     'opts': new OptimalSearchStrategy(),
+    'optc': new OptimalSearchStrategyWithOpening(0),
+    'opto': new OptimalSearchStrategyWithOpening(4),
+    'opte': new OptimalSearchStrategyWithOpening(2),
 };
-const stratNames = ['rand', 'weak', 'shrt', 'opts'];
+const stratNames = ['rand', 'weak', 'shrt', 'opts']; //, 'optc', 'opto', 'opte'];
 function testBotVsBot() {
     const N = 1000;
     for (const sn1 of stratNames) {
@@ -384,13 +462,12 @@ function testBotVsBot() {
                 }
                 results.set(board.winner, 1 + (results.get(board.winner) || 0));
             }
-            console.log(sn1, sn2);
-            console.log('  X', results.get(Mark.X));
-            console.log('  O', results.get(Mark.O));
-            console.log('  =', results.get('tie'));
-            const score = (results.get(Mark.X) + 0.5 * results.get('tie')) / N;
-            console.log('  S', score);
+            const x = results.get(Mark.X) || 0;
+            const o = results.get(Mark.O) || 0;
+            const t = results.get('tie') || 0;
+            console.log(`${sn1} ${x.toString().padStart(4)} | ${sn2} ${o.toString().padStart(4)} | tie ${t.toString().padStart(4)}`);
         }
+        console.log('-');
     }
 }
 //testBotVsBot();
