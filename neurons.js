@@ -196,4 +196,4 @@ function testParity() {
     });
 }
 const vis = new Visualizer(new Layer(4, 1));
-testParity();
+testMajority();

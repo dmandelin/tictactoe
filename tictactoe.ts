@@ -406,6 +406,42 @@ class OptimalSearchStrategy {
     }
 }
 
+const strats = {
+    'rand': new RandomStrategy(),
+    'weak': new WeakDefensiveStrategy(),
+    'shrt': new ShortSightedStrategy(),
+    'opts': new OptimalSearchStrategy(),
+}
+const stratNames = ['rand', 'weak', 'shrt', 'opts'];
+
+function testBotVsBot() {
+    const N = 1000;
+    for (const sn1 of stratNames) {
+        const s1 = strats[sn1];
+        for(const sn2 of stratNames) {
+            const s2 = strats[sn2];
+            const results = new Map<Mark|"tie",number>();
+            for (let i = 0; i < N; ++i) {
+                const board = new Board();
+                while (board.winner == Mark.BLANK) {
+                    const s = board.nextMark == Mark.X ? s1 : s2;
+                    const m = s.selectMove(board);
+                    board.moveByIndex(m);
+                }
+                results.set(board.winner, 1 + (results.get(board.winner) || 0));
+            }
+            console.log(sn1, sn2);
+            console.log('  X', results.get(Mark.X));
+            console.log('  O', results.get(Mark.O));
+            console.log('  =', results.get('tie'));
+            const score = (results.get(Mark.X) + 0.5 * results.get('tie'))/N;
+            console.log('  S', score);
+        }
+    }
+}
+
+//testBotVsBot();
+
 const board = new Board();
 const controller = new Controller(board);
 setupPlayerNumberOptions();
